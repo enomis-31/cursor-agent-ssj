@@ -4,7 +4,6 @@ import re
 from src.utils import logger
 
 STATE_FILE = "state.json"
-TASKS_MD = "specs/001-cloud-agent-orchestrator/tasks.md" # This should ideally be dynamic or passed from main
 
 def load_state():
     """Load the orchestrator state from state.json."""
@@ -27,14 +26,14 @@ def save_state(state):
         logger.error(f"Failed to save state: {e}")
         raise
 
-def sync_task_to_md(task_id, completed=True):
+def sync_task_to_md(task_id, tasks_md_path, completed=True):
     """Sync a task's completion status back to the tasks.md file."""
-    if not os.path.exists(TASKS_MD):
-        logger.warning(f"Tasks file not found: {TASKS_MD}. Skipping sync.")
+    if not os.path.exists(tasks_md_path):
+        logger.warning(f"Tasks file not found: {tasks_md_path}. Skipping sync.")
         return
 
     try:
-        with open(TASKS_MD, 'r') as f:
+        with open(tasks_md_path, 'r') as f:
             content = f.read()
 
         marker = "[x]" if completed else "[ ]"
@@ -45,11 +44,11 @@ def sync_task_to_md(task_id, completed=True):
         new_content = re.sub(pattern, replacement, content)
         
         if new_content != content:
-            with open(TASKS_MD, 'w') as f:
+            with open(tasks_md_path, 'w') as f:
                 f.write(new_content)
-            logger.info(f"Synced {task_id} status to {TASKS_MD}")
+            logger.info(f"Synced {task_id} status to {tasks_md_path}")
         else:
-            logger.warning(f"Task {task_id} not found in {TASKS_MD} for sync.")
+            logger.warning(f"Task {task_id} not found in {tasks_md_path} for sync.")
             
     except Exception as e:
         logger.error(f"Failed to sync task to markdown: {e}")

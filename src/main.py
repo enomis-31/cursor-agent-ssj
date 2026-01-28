@@ -1,32 +1,64 @@
 import argparse
 import sys
+import os
+
+# Add project root to sys.path to support 'src.' imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from src.utils import logger, get_env_var
 from src.orchestrator import assemble_prompt, monitor_agent
 from src.cursor_api import launch_agent, add_followup
 from src.verifier import run_verification
-from src.state_manager import load_state, save_state, sync_task_to_md, get_pending_tasks, TASKS_MD
+from src.state_manager import load_state, save_state, sync_task_to_md, get_pending_tasks
 
-def process_task(task_id, spec_path, plan_path, repo_url, state):
-    """Full workflow for processing a single task with retries."""
-    if "tasks" not in state: state["tasks"] = {}
+def get_feature_dir(feature_arg=None):
+    """Determine the feature directory to use."""
+    specs_root = "specs"
+    if not os.path.exists(specs_root):
+        raise FileNotFoundError("The 'specs' directory does not exist.")
+
+    # 1. Use explicit argument
+    if feature_arg:
+        path = os.path.join(specs_root, feature_arg)
+        if os.path.exists(path):
+            return path
+        raise FileNotFoundError(f"Feature directory not found: {path}")
+
+    # 2. Try to auto-detect if there's only one feature
+    features = [d for d in os.listdir(specs_root) if os.path.isdir(os.path.join(specs_root, d))]
+    if len(features) == 1:
+        logger.info(f"Auto-detected single feature: {features[0]}")
+        return os.path.join(specs_root, features[0])
+
+    # 3. Fail if ambiguous
+    if len(features) > 1:
+        logger.error("Multiple features found in 'specs/'. Please specify one using --feature <name>.")
+        logger.error(f"Available features: {', '.join(features)}")
+        sys.exit(1)
     
+    raise FileNotFoundError("No feature directories found in 'specs/'.")
+
+def process_task(task_id, feature_dir, repo_url, state):
+    """Full workflow for processing a single task with retries."""
+    spec_path = os.path.join(feature_dir, "spec.md")
+    plan_path = os.path.join(feature_dir, "plan.md")
+    tasks_md_path = os.path.join(feature_dir, "tasks.md")
+
+    if "tasks" not in state: state["tasks"] = {}
     if task_id not in state["tasks"]:
         state["tasks"][task_id] = {"status": "pending", "retries": 0}
 
     task_meta = state["tasks"][task_id]
-    
-    # Check if already completed
     if task_meta.get("status") == "completed":
         logger.info(f"Task {task_id} is already completed. Skipping.")
         return
 
     MAX_RETRIES = 2
-    
     while task_meta.get("retries", 0) <= MAX_RETRIES:
         try:
             current_retry = task_meta.get("retries", 0)
             if current_retry == 0:
-                prompt = assemble_prompt(task_id, spec_path, plan_path)
+                prompt = assemble_prompt(task_id, spec_path, plan_path, tasks_md_path)
                 source_ref = state.get("last_successful_branch", "main")
                 logger.info(f"Launching initial agent for {task_id} from base: {source_ref}...")
                 result = launch_agent(f"Task {task_id}", prompt, repo_url, source_ref=source_ref)
@@ -42,12 +74,10 @@ def process_task(task_id, spec_path, plan_path, repo_url, state):
             task_meta["status"] = "running"
             save_state(state)
             
-            # Monitor
             logger.info(f"Monitoring agent {agent_id} for task {task_id}...")
             status_data = monitor_agent(agent_id)
             output_summary = status_data.get("summary", "Task execution finished.")
             
-            # Verify
             logger.info(f"Verifying {task_id} (Attempt {current_retry+1})...")
             with open(spec_path, 'r') as f: spec_content = f.read()
             v_status, v_feedback = run_verification(task_id, spec_content, output_summary)
@@ -56,14 +86,13 @@ def process_task(task_id, spec_path, plan_path, repo_url, state):
                 logger.info(f"Task {task_id} PASSED verification.")
                 task_meta["status"] = "completed"
                 task_meta["last_verification_result"] = "pass"
-                
                 new_branch = status_data.get("target", {}).get("branchName")
                 if new_branch:
                     state["last_successful_branch"] = new_branch
                     logger.info(f"Updated last successful branch to: {new_branch}")
                 
                 save_state(state)
-                sync_task_to_md(task_id, completed=True)
+                sync_task_to_md(task_id, tasks_md_path, completed=True)
                 return
             else:
                 logger.warning(f"Verification FAILED for {task_id}: {v_feedback}")
@@ -84,40 +113,41 @@ def process_task(task_id, spec_path, plan_path, repo_url, state):
 
 def main():
     parser = argparse.ArgumentParser(description="Cursor Cloud Agent Orchestrator")
+    parser.add_argument("--feature", help="Feature directory name inside specs/ (e.g., 001-ui-theme)")
     parser.add_argument("--task", help="Run a specific task ID (e.g., T001)")
     parser.add_argument("--dry-run", action="store_true", help="Prepare prompt without launching agent")
     args = parser.parse_args()
 
-    # Paths (could be made dynamic)
-    SPEC_PATH = "specs/001-cloud-agent-orchestrator/spec.md"
-    PLAN_PATH = "specs/001-cloud-agent-orchestrator/plan.md"
     REPO_URL = get_env_var("GITHUB_REPO_URL")
 
     try:
+        feature_dir = get_feature_dir(args.feature)
+        tasks_md_path = os.path.join(feature_dir, "tasks.md")
         state = load_state()
         
         if args.task:
             if args.dry_run:
-                prompt = assemble_prompt(args.task, SPEC_PATH, PLAN_PATH)
+                spec_path = os.path.join(feature_dir, "spec.md")
+                plan_path = os.path.join(feature_dir, "plan.md")
+                prompt = assemble_prompt(args.task, spec_path, plan_path, tasks_md_path)
                 print("\n--- DRY RUN: PROMPT ---")
                 print(prompt)
                 print("--- END PROMPT ---\n")
                 sys.exit(0)
-            process_task(args.task, SPEC_PATH, PLAN_PATH, REPO_URL, state)
+            process_task(args.task, feature_dir, REPO_URL, state)
         else:
-            # Full loop logic
-            logger.info("Starting iterative task loop...")
-            pending = get_pending_tasks(TASKS_MD)
+            logger.info(f"Starting iterative task loop for: {feature_dir}...")
+            pending = get_pending_tasks(tasks_md_path)
             if not pending:
                 logger.info("No pending tasks to process.")
                 sys.exit(0)
             
             for task_id in pending:
                 logger.info(f"\n--- NEXT TASK: {task_id} ---")
-                process_task(task_id, SPEC_PATH, PLAN_PATH, REPO_URL, state)
+                process_task(task_id, feature_dir, REPO_URL, state)
                 logger.info(f"--- FINISHED TASK: {task_id} ---\n")
             
-            logger.info("All tasks in tasks.md processed successfully!")
+            logger.info(f"All tasks in {tasks_md_path} processed successfully!")
 
     except Exception as e:
         logger.error(f"Fatal loop error: {e}")

@@ -22,10 +22,14 @@ OPENAI_API_KEY=your_openai_api_key
 GITHUB_REPO_URL=https://github.com/your-org/your-repo
 ```
 
-## Usage
-Run the full orchestration loop:
+## Run the full orchestration loop (auto-detects if only one feature exists):
 ```bash
 python src/main.py
+```
+
+Run a specific feature:
+```bash
+python src/main.py --feature 001-cloud-agent-orchestrator
 ```
 
 Run a specific task:

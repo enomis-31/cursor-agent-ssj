@@ -24,9 +24,11 @@ def setup_logging():
     """Returns the logger instance."""
     return logger
 
-import subprocess
+# Polling and retry constants
+POLLING_INTERVAL = 5  # seconds
+MAX_POLLING_ATTEMPTS = 60  # total 5 minutes
 
-# ... existing code ...
+import subprocess
 
 def run_command(cmd):
     """Run a shell command and return the output."""
