@@ -26,7 +26,7 @@ def setup_logging():
 
 # Polling and retry constants
 POLLING_INTERVAL = 5  # seconds
-MAX_POLLING_ATTEMPTS = 60  # total 5 minutes
+MAX_POLLING_ATTEMPTS = 1200  # total 100 minutes (enough for 1h minimum)
 
 import subprocess
 

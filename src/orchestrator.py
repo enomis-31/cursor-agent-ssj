@@ -110,7 +110,7 @@ def monitor_agent(agent_id):
         
         if status == "FINISHED":
             return status_data
-        elif status in ["FAILED", "STOPPED", "DELETED"]:
+        elif status in ["FAILED", "STOPPED", "DELETED", "EXPIRED", "CANCELLED"]:
             raise RuntimeError(f"Agent {agent_id} ended with terminal status: {status}")
         
         time.sleep(POLLING_INTERVAL)
