@@ -28,9 +28,9 @@ description: "Task list for Cursor Cloud Agent Orchestrator implementation"
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create project structure per implementation plan (src/ folder)
-- [ ] T002 [P] Initialize Python project with dependencies (requests, openai, python-dotenv) in requirements.txt
-- [ ] T003 [P] Setup environment configuration helpers in src/utils.py (logging, env loading)
+- [x] T001 Create project structure per implementation plan (src/ folder)
+- [x] T002 [P] Initialize Python project with dependencies (requests, openai, python-dotenv) in requirements.txt
+- [x] T003 [P] Setup environment configuration helpers in src/utils.py (logging, env loading)
 
 ---
 
@@ -38,10 +38,10 @@ description: "Task list for Cursor Cloud Agent Orchestrator implementation"
 
 **Purpose**: Core infrastructure that MUST be complete before ANY user story can be implemented
 
-- [ ] T004 Implement state management logic in src/state_manager.py (state.json CRUD and tasks.md sync)
-- [ ] T005 [P] Implement Git utility functions in src/utils.py (branch creation, current branch detection)
-- [ ] T006 [P] Implement Cursor Cloud API wrappers in src/cursor_api.py (launch, poll status, followup)
-- [ ] T007 [P] Implement OpenAI/GPT-mini client in src/verifier.py (completion verification logic)
+- [x] T004 Implement state management logic in src/state_manager.py (state.json CRUD and tasks.md sync)
+- [x] T005 [P] Implement Git utility functions in src/utils.py (branch creation, current branch detection)
+- [x] T006 [P] Implement Cursor Cloud API wrappers in src/cursor_api.py (launch, poll status, followup)
+- [x] T007 [P] Implement OpenAI/GPT-mini client in src/verifier.py (completion verification logic)
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -55,10 +55,10 @@ description: "Task list for Cursor Cloud Agent Orchestrator implementation"
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Implement task parsing logic in src/orchestrator.py (extract T<n> from tasks.md)
-- [ ] T009 [US1] Implement prompt assembly logic in src/orchestrator.py (inject Spec + Plan context)
-- [ ] T010 [US1] Create CLI entry point in src/main.py to handle --task and --dry-run arguments
-- [ ] T011 [US1] Add "Fail Fast & Loud" error handling for API launch failures in src/cursor_api.py
+- [x] T008 [US1] Implement task parsing logic in src/orchestrator.py (extract T<n> from tasks.md)
+- [x] T009 [US1] Implement prompt assembly logic in src/orchestrator.py (inject Spec + Plan context)
+- [x] T010 [US1] Create CLI entry point in src/main.py to handle --task and --dry-run arguments
+- [x] T011 [US1] Add "Fail Fast & Loud" error handling for API launch failures in src/cursor_api.py
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
@@ -72,10 +72,10 @@ description: "Task list for Cursor Cloud Agent Orchestrator implementation"
 
 ### Implementation for User Story 2
 
-- [ ] T012 [US2] Implement polling loop in src/orchestrator.py (monitor status via cursor_api.py)
-- [ ] T013 [US2] Implement verification workflow in src/verifier.py (GPT-mini pass/fail logic)
-- [ ] T014 [US2] Implement state synchronization in src/state_manager.py (update JSON and tasks.md [x])
-- [ ] T015 [US2] Add observability logging for polling and verification steps in src/main.py
+- [x] T012 [US2] Implement polling loop in src/orchestrator.py (monitor status via cursor_api.py)
+- [x] T013 [US2] Implement verification workflow in src/verifier.py (GPT-mini pass/fail logic)
+- [x] T014 [US2] Implement state synchronization in src/state_manager.py (update JSON and tasks.md [x])
+- [x] T015 [US2] Add observability logging for polling and verification steps in src/main.py
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 
@@ -89,10 +89,10 @@ description: "Task list for Cursor Cloud Agent Orchestrator implementation"
 
 ### Implementation for User Story 3
 
-- [ ] T016 [US3] Implement sequential loop logic in src/main.py (pick first [ ] task)
-- [ ] T017 [US3] Implement branch chaining in src/orchestrator.py (use last_successful_branch as base)
-- [ ] T018 [US3] Implement double-retry logic with differential feedback in src/orchestrator.py
-- [ ] T019 [US3] Implement stop-on-failure logic with clear error reporting in src/main.py
+- [x] T016 [US3] Implement sequential loop logic in src/main.py (pick first [ ] task)
+- [x] T017 [US3] Implement branch chaining in src/orchestrator.py (use last_successful_branch as base)
+- [x] T018 [US3] Implement double-retry logic with differential feedback in src/orchestrator.py
+- [x] T019 [US3] Implement stop-on-failure logic with clear error reporting in src/main.py
 
 **Checkpoint**: All user stories should now be independently functional
 
@@ -102,9 +102,9 @@ description: "Task list for Cursor Cloud Agent Orchestrator implementation"
 
 **Purpose**: Final refinements and documentation
 
-- [ ] T020 [P] Finalize README.md and documentation in docs/
-- [ ] T021 [P] Add final dry-run validation checks across all components
-- [ ] T022 Run quickstart.md validation to ensure everything works as documented
+- [x] T020 [P] Finalize README.md and documentation in docs/
+- [x] T021 [P] Add final dry-run validation checks across all components
+- [x] T022 Run quickstart.md validation to ensure everything works as documented
 
 ---
 
