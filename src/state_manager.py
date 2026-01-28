@@ -8,11 +8,32 @@ STATE_FILE = "state.json"
 def load_state():
     """Load the orchestrator state from state.json."""
     if not os.path.exists(STATE_FILE):
-        return {"last_successful_branch": "main", "tasks": {}}
+        return {
+            "last_successful_branch": "main",
+            "current_phase": "features",
+            "features": {},
+            "polish": {
+                "logs": {"status": "pending"},
+                "errors": {"status": "pending"},
+                "hinting": {"status": "pending"},
+                "tests": {"status": "pending"}
+            }
+        }
     
     try:
         with open(STATE_FILE, 'r') as f:
-            return json.load(f)
+            state = json.load(f)
+            # Ensure new fields exist for backward compatibility if needed
+            if "current_phase" not in state: state["current_phase"] = "features"
+            if "features" not in state: state["features"] = state.get("tasks", {}) # migration
+            if "polish" not in state:
+                state["polish"] = {
+                    "logs": {"status": "pending"},
+                    "errors": {"status": "pending"},
+                    "hinting": {"status": "pending"},
+                    "tests": {"status": "pending"}
+                }
+            return state
     except (json.JSONDecodeError, IOError) as e:
         logger.error(f"Failed to load state: {e}")
         raise RuntimeError("Cannot proceed: state file is missing or corrupted.")
@@ -41,15 +62,12 @@ def sync_task_to_md(task_id, tasks_md_path, completed=True):
         pattern = rf"- \[ [x ] \] {task_id}"
         replacement = f"- {marker} {task_id}"
         
-        new_content = re.sub(pattern, replacement, content)
+        new_content = re.sub(pattern, replacement, content, flags=re.IGNORECASE)
         
         if new_content != content:
             with open(tasks_md_path, 'w') as f:
                 f.write(new_content)
             logger.info(f"Synced {task_id} status to {tasks_md_path}")
-        else:
-            logger.warning(f"Task {task_id} not found in {tasks_md_path} for sync.")
-            
     except Exception as e:
         logger.error(f"Failed to sync task to markdown: {e}")
         raise
