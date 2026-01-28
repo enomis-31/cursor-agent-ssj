@@ -5,6 +5,18 @@
 **Status**: Draft  
 **Input**: User description: "Implementa l'orchestratore locale per chiamare Cursor Cloud Agents via API, tracciando lo stato dei task definiti in specs/ e seguendo un loop iterativo. Mi raccomando, manteniamoci sulla semplicità, in quanto è un progetto che voglio realizzare nel giro di un'ora. Quindi, dobbiamo fare solamente il necessario e dobbiamo essere efficienti. Quello che voglio andare a fare, semplicemente, è sfruttare l'alta descrizione del requisito che si riesce ad ottenere tramite Spec Kit, in maniera tale da fornire alla gente Cursor delle istruzioni precisissime. Quello che voglio fare, locale al massimo, è forse testing dell'output della gente Cursor e la verifica dell'avanzamento dei requisiti. Cioè non so. Vorrei limitare al massimo quello che facciamo in locale, perchè non abbiamo intelligenza, non possiamo seguire ovviamente modelli. Potremmo usare un API, in realtà, per orchestrare il locale. Effettivamente, potremmo usare un API economica tipo GPT-mini, che è il cervello locale che orchestra la parte locale, sempre implementato in maniera molto semplice. Di base, il locale deve solo verificare qual'è l'output o, comunque, orchestrare i processi. Non so se questa cosa conviene farla tramite script puro o aggiungere un po' di intelligenza, quindi avere anche un'altra fonte di intelligenza artificiale da inserire nell'operatività locale."
 
+## Clarifications
+
+### Session 2026-01-28
+- Q: Come deve essere gestita la logica di decisione locale (es. decidere se un task è completato o scegliere il prossimo task)? → A: Hybrid (GPT-mini): Usa un LLM solo per la *verifica* dell'output (valutare se il codice prodotto soddisfa la spec).
+- Q: Dove deve risiedere la "verità" sull'avanzamento dei task durante l'esecuzione del loop? → A: State JSON: Usa un `state.json` locale per i metadati (ID agenti, log errori) e aggiorna `tasks.md` a completamento.
+- Q: Cosa deve fare l'orchestratore quando un task non supera la verifica? → A: Tenta fino a due follow-up di correzione (double retry) e poi si ferma per intervento umano.
+- Q: Come deve gestire l'orchestratore la creazione e la progressione dei branch per ogni nuovo task del loop? → A: Sequenziale: Il task N parte dal branch prodotto dal task N-1 (Chaining).
+- Q: Come gestire un adempimento parziale delle specifiche mantenendo la base del lavoro precedente? → A: Feedback Differenziale + Summary Reprompt: Invia un report "Delta" (cosa manca) insieme a un riepilogo della specifica originale per mantenere il contesto, lavorando sul branch esistente.
+- Q: Come viene selezionato il prossimo task? → A: Il prossimo task pendente è il primo con `[ ]` in `tasks.md`, in ordine top-down di file.
+- Q: Quali sono le regole di base per la verifica GPT-mini? → A: Il task è PASS se tutti gli acceptance criteria della User Story sono marcati come soddisfatti dall'LLM; altrimenti FAIL.
+- Q: Come vengono gestiti i timeout e gli stati dell'API? → A: Vedere la tabella di mapping "status → azione" nei requisiti funzionali.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Single Task Execution (Priority: P1)
@@ -61,19 +73,34 @@ As a developer, I want the orchestrator to automatically pick the next available
 
 ### Functional Requirements
 
-- **FR-001**: System MUST parse Spec Kit `tasks.md` to identify pending tasks and their descriptions.
+- **FR-001**: System MUST parse Spec Kit `tasks.md` to identify pending tasks. The next pending task is the first one marked with `[ ]`, in top-down order.
 - **FR-002**: System MUST inject context from `spec.md` and `plan.md` into the prompt sent to the Cloud Agent.
 - **FR-003**: System MUST call the Cursor Cloud Agent API (POST `/v0/agents`) to launch tasks.
 - **FR-004**: System MUST monitor agent status (GET `/v0/agents/{id}`) until completion.
-- **FR-005**: System MUST update the local task status (e.g., in `tasks.md`) upon completion.
-- **FR-006**: System SHOULD use a lightweight/cheap LLM (e.g., GPT-4o-mini) to coordinate local orchestration decisions if simple logic is insufficient.
+  - **Status Mapping**:
+    - `FINISHED` -> Proceed to Verification.
+    - `RUNNING` / `PENDING` -> Continue Polling.
+    - `FAILED` / `STOPPED` / `DELETED` -> Log error and stop loop.
+- **FR-005**: System MUST maintain execution state in a `state.json` file and sync completion status back to `tasks.md`.
+- **FR-006**: System MUST use a lightweight LLM (e.g., GPT-4o-mini) specifically for verifying Cloud Agent output.
+  - **Verification Rules**: Task is **PASS** if all acceptance criteria of the User Story are satisfied; otherwise **FAIL**.
+- **FR-008**: Local orchestration logic (task selection, sequence) MUST remain deterministic/script-based for maximum efficiency.
+- **FR-009**: System MUST support up to 2 automatic retries via follow-up prompts if verification fails.
+- **FR-013**: Retry prompts MUST include a "Differential Feedback" report (what is missing/wrong) and a "Summary Reprompt" of the core requirements to maintain context.
+- **FR-014**: Retry operations MUST continue working on the same branch as the previous attempt to build upon existing progress.
+- **FR-010**: System MUST stop and alert the user if a task fails verification after the maximum number of retries.
+- **FR-011**: System MUST implement sequential branch chaining: Task N MUST use the resulting branch from Task N-1 as its base (`source.ref`).
+- **FR-012**: System MUST track the latest successful branch name in `state.json`.
+- **FR-015**: System MUST handle lack of tasks or corrupt state by stopping with a clear message:
+  - No tasks: "No pending tasks to process."
+  - Corrupt/Missing state: "Cannot proceed: state file is missing or corrupted."
 - **FR-007**: System MUST support a "dry-run" mode to see what prompts would be sent without actually launching agents.
 
 ### Key Entities
 
-- **Task**: An individual work item with an ID, title, description, and status.
-- **Orchestrator State**: A tracking mechanism (could be `tasks.md` itself or a `state.json`) for the current project progress.
-- **Agent Context**: The bundle of information (Spec + Plan + Task) sent to the Cloud Agent.
+- **Task**: An individual work item with an ID, title, description, status, and associated branch name.
+- **Orchestrator State**: A `state.json` file tracking project progress, Agent IDs, verification results, and the current head branch for chaining.
+- **Agent Context**: The bundle of information (Spec + Plan + Task) sent to the Cloud Agent, including the correct source branch reference.
 
 ## Assumptions & Constraints
 
